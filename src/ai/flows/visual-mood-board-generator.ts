@@ -43,30 +43,37 @@ const generateVisualMoodBoardFlow = ai.defineFlow(
 
     if (input.mediaDataUris && input.mediaDataUris.length > 0) {
       input.mediaDataUris.forEach(uri => {
-        // Ensure URI is not empty or whitespace
         if (uri.trim()) {
             imageGenPromptParts.push({media: {url: uri}});
         }
       });
     }
 
-    imageGenPromptParts.push({text: `Generate a visual mood board consisting of 3 diverse images and a brief explanation for the theme: "${input.prompt}". The images should visually represent the mood and keywords. The explanation should describe the overall feeling and key visual elements.`});
+    imageGenPromptParts.push({text: `Generate a visual mood board consisting of up to 3 diverse images and a brief explanation for the theme: "${input.prompt}". The images should visually represent the mood and keywords. The explanation should describe the overall feeling and key visual elements.`});
     
 
-    const {text, media} = await ai.generate({
+    const {text, media: rawMedia} = await ai.generate({
       model: 'googleai/gemini-2.0-flash-exp',
       prompt: imageGenPromptParts,
       config: {
         responseModalities: ['TEXT', 'IMAGE'],
-        // Safety settings can be adjusted here if needed, using defaults for now.
         // safetySettings: [ { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' } ] // Example
       },
-      // Removed output format and schema, as gemini-2.0-flash-exp does not support JSON output when generating images.
     });
 
-    const moodBoardImages = media?.map(m => m.url!).filter(url => !!url) || []; // Ensure media and url exist
+    let processedMediaArray: { url: string; contentType?: string }[] = [];
+    if (rawMedia) {
+      if (Array.isArray(rawMedia)) {
+        processedMediaArray = rawMedia;
+      } else if (typeof rawMedia === 'object' && rawMedia !== null && 'url' in rawMedia && typeof (rawMedia as any).url === 'string') {
+        // Handle case where rawMedia might be a single media object
+        processedMediaArray = [rawMedia as { url: string; contentType?: string }];
+      }
+    }
     
-    let explanationText = "The AI model generated a visual mood board based on your input."; // Default fallback
+    const moodBoardImages = processedMediaArray.map(m => m.url).filter(url => !!url);
+    
+    let explanationText = "The AI model generated a visual mood board based on your input.";
     if (text && text.trim()) {
         explanationText = text.trim();
     }
