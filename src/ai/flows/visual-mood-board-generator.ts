@@ -1,4 +1,4 @@
-// VisualMoodBoardGenerator.ts
+
 'use server';
 
 /**
@@ -16,4 +16,81 @@ const GenerateVisualMoodBoardInputSchema = z.object({
   mediaDataUris: z
     .array(z.string())
     .describe(
-      'An array of media files (images/footage), as data URIs that must include a MIME type and use Base64 encoding. Expected format: [\
+      "An array of media files (images/footage), as data URIs that must include a MIME type and use Base64 encoding. Expected format: ['data:<mimetype>;base64,<encoded_data>', ...]."
+    ),
+  prompt: z.string().describe('Keywords or a theme for the mood board (e.g., "nostalgic summer evenings", "cyberpunk cityscapes").'),
+});
+export type GenerateVisualMoodBoardInput = z.infer<typeof GenerateVisualMoodBoardInputSchema>;
+
+const GenerateVisualMoodBoardOutputSchema = z.object({
+  moodBoardImages: z.array(z.string().url()).describe('An array of data URIs of the generated mood board images.'),
+  explanation: z.string().describe('A brief explanation or thematic description of the generated mood board.'),
+});
+export type GenerateVisualMoodBoardOutput = z.infer<typeof GenerateVisualMoodBoardOutputSchema>;
+
+export async function generateVisualMoodBoard(input: GenerateVisualMoodBoardInput): Promise<GenerateVisualMoodBoardOutput> {
+  return generateVisualMoodBoardFlow(input);
+}
+
+const generateVisualMoodBoardFlow = ai.defineFlow(
+  {
+    name: 'generateVisualMoodBoardFlow',
+    inputSchema: GenerateVisualMoodBoardInputSchema,
+    outputSchema: GenerateVisualMoodBoardOutputSchema,
+  },
+  async (input) => {
+    const imageGenPromptParts: ({text: string} | {media: {url: string}})[] = [];
+
+    if (input.mediaDataUris && input.mediaDataUris.length > 0) {
+      input.mediaDataUris.forEach(uri => {
+        // Ensure URI is not empty or whitespace
+        if (uri.trim()) {
+            imageGenPromptParts.push({media: {url: uri}});
+        }
+      });
+    }
+
+    imageGenPromptParts.push({text: `Generate a visual mood board consisting of 3 diverse images and a brief explanation for the theme: "${input.prompt}". The images should visually represent the mood and keywords. The explanation should describe the overall feeling and key visual elements.`});
+    
+    const TextResponseSchema = z.object({
+        explanation: z.string().describe("A brief explanation or thematic description of the generated mood board, capturing the essence of the visuals and theme."),
+    });
+
+    const {text, media} = await ai.generate({
+      model: 'googleai/gemini-2.0-flash-exp',
+      prompt: imageGenPromptParts,
+      config: {
+        responseModalities: ['TEXT', 'IMAGE'],
+        // Safety settings can be adjusted here if needed, using defaults for now.
+        // safetySettings: [ { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' } ] // Example
+      },
+      output: {
+        format: "json", // Request JSON for the text part
+        schema: TextResponseSchema,
+      }
+    });
+
+    const moodBoardImages = media?.map(m => m.url!).filter(url => !!url) || []; // Ensure media and url exist
+    
+    let explanationText = "The AI model generated a visual mood board based on your input."; // Default fallback
+    if (text) {
+        try {
+            const parsedText = JSON.parse(text) as z.infer<typeof TextResponseSchema>;
+            if (parsedText && parsedText.explanation) {
+                explanationText = parsedText.explanation;
+            }
+        } catch (e) {
+            console.warn("Failed to parse AI explanation as JSON, using raw text if available, or default.", e);
+            // If JSON parsing fails but text is not empty, use raw text.
+            if (text.trim()) {
+              explanationText = text.trim();
+            }
+        }
+    }
+
+    return {
+      moodBoardImages: moodBoardImages,
+      explanation: explanationText,
+    };
+  }
+);
