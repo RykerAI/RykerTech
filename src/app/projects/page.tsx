@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useProjects } from '@/hooks/use-projects';
 import { PageTitle } from '@/components/common/page-title';
 import { Button } from '@/components/ui/button';
@@ -33,7 +34,7 @@ const ProjectItemCard: React.FC<{ item: IdeaSparkResult | WebInsightResult | Moo
         <div className="flex space-x-1 mt-1">
           {(item as MoodBoardResult).generatedImages.slice(0, 4).map((img, i) => (
             <div key={i} className="w-10 h-10 relative rounded overflow-hidden">
-            <Image src={img.startsWith('data:') ? img : \`https://placehold.co/40x40.png?text=...\`} alt="mood image" layout="fill" objectFit="cover" data-ai-hint="thumbnail image"/>
+            <Image src={img.startsWith('data:') ? img : 'https://placehold.co/40x40.png'} alt="mood image" layout="fill" objectFit="cover" data-ai-hint="thumbnail image"/>
             </div>
           ))}
           {(item as MoodBoardResult).generatedImages.length > 4 && <div className="w-10 h-10 bg-muted flex items-center justify-center rounded text-xs">+{ (item as MoodBoardResult).generatedImages.length - 4}</div>}
@@ -64,7 +65,7 @@ const ProjectItemCard: React.FC<{ item: IdeaSparkResult | WebInsightResult | Moo
                 <Star className={`h-4 w-4 ${item.rating && item.rating >= rate ? 'text-yellow-400 fill-yellow-400' : ''}`} />
               </Button>
             ))}
-          </Button>
+          </div>
         )}
       </CardContent>
       <CardFooter className="pt-2 flex justify-end">
@@ -230,16 +231,3 @@ export default function ProjectsPage() {
     </div>
   );
 }
-
-// CSS for truncate (if not using a Tailwind plugin)
-// Add to globals.css or a style tag for development.
-// .truncate_3_lines {
-//   overflow: hidden;
-//   text-overflow: ellipsis;
-//   display: -webkit-box;
-//   -webkit-line-clamp: 3;
-//   -webkit-box-orient: vertical;
-// }
-// For simplicity here, it's just a class name. Actual truncation might require more setup.
-// Using Image component for Moodboard preview.
-import Image from 'next/image';
