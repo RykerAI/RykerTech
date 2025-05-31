@@ -52,9 +52,6 @@ const generateVisualMoodBoardFlow = ai.defineFlow(
 
     imageGenPromptParts.push({text: `Generate a visual mood board consisting of 3 diverse images and a brief explanation for the theme: "${input.prompt}". The images should visually represent the mood and keywords. The explanation should describe the overall feeling and key visual elements.`});
     
-    const TextResponseSchema = z.object({
-        explanation: z.string().describe("A brief explanation or thematic description of the generated mood board, capturing the essence of the visuals and theme."),
-    });
 
     const {text, media} = await ai.generate({
       model: 'googleai/gemini-2.0-flash-exp',
@@ -64,28 +61,14 @@ const generateVisualMoodBoardFlow = ai.defineFlow(
         // Safety settings can be adjusted here if needed, using defaults for now.
         // safetySettings: [ { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' } ] // Example
       },
-      output: {
-        format: "json", // Request JSON for the text part
-        schema: TextResponseSchema,
-      }
+      // Removed output format and schema, as gemini-2.0-flash-exp does not support JSON output when generating images.
     });
 
     const moodBoardImages = media?.map(m => m.url!).filter(url => !!url) || []; // Ensure media and url exist
     
     let explanationText = "The AI model generated a visual mood board based on your input."; // Default fallback
-    if (text) {
-        try {
-            const parsedText = JSON.parse(text) as z.infer<typeof TextResponseSchema>;
-            if (parsedText && parsedText.explanation) {
-                explanationText = parsedText.explanation;
-            }
-        } catch (e) {
-            console.warn("Failed to parse AI explanation as JSON, using raw text if available, or default.", e);
-            // If JSON parsing fails but text is not empty, use raw text.
-            if (text.trim()) {
-              explanationText = text.trim();
-            }
-        }
+    if (text && text.trim()) {
+        explanationText = text.trim();
     }
 
     return {
@@ -94,3 +77,4 @@ const generateVisualMoodBoardFlow = ai.defineFlow(
     };
   }
 );
+
