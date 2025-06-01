@@ -3,31 +3,32 @@
 
 import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-// Assuming visual-mood-board-generator.ts exports generateVisualMoodBoard function and its types
-// If the actual export is different, this import will need to be adjusted.
 import { generateVisualMoodBoard, GenerateVisualMoodBoardInput, GenerateVisualMoodBoardOutput } from '@/ai/flows/visual-mood-board-generator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageTitle } from '@/components/common/page-title';
 import { FileUploader } from '@/components/common/file-uploader';
+import { GeneratedMoodboardDisplayCard } from '@/components/common/output-display-card';
+import { Dialog, DialogContent, DialogOverlay, DialogPortal, DialogClose } from '@/components/ui/dialog';
 import { fileToDataURI } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ImageIcon as MoodBoardIcon, Save } from 'lucide-react';
+import { Loader2, ImageIcon as MoodBoardIcon, X } from 'lucide-react';
 import Image from 'next/image';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function MoodBoardPage() {
   const [keywords, setKeywords] = useState('');
   const [files, setFiles] = useState<File[]>([]);
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
   const { toast } = useToast();
 
   const mutation = useMutation<GenerateVisualMoodBoardOutput, Error, GenerateVisualMoodBoardInput>({
-    mutationFn: generateVisualMoodBoard, // This function must exist in the imported flow
+    mutationFn: generateVisualMoodBoard,
     onSuccess: (data) => {
       toast({
         title: "Mood Board Generated!",
-        description: `Created a mood board with ${data.moodBoardImages.length} images.`,
+        description: data.explanation || `Created a mood board with ${data.moodBoardImages.length} images.`,
       });
     },
     onError: (error) => {
@@ -41,25 +42,26 @@ export default function MoodBoardPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (files.length === 0) {
+    if (files.length === 0 && !keywords.trim()) {
       toast({
-        title: "Images Required",
-        description: "Please upload some images to generate a mood board.",
+        title: "Input Required",
+        description: "Please upload some images or provide keywords for your mood board.",
         variant: "destructive",
       });
       return;
     }
     if (!keywords.trim()) {
-      toast({
-        title: "Keywords Required",
-        description: "Please enter some keywords or a theme for your mood board.",
-        variant: "destructive",
-      });
-      return;
-    }
+        toast({
+          title: "Keywords Required",
+          description: "Please enter some keywords or a theme for your mood board.",
+          variant: "destructive",
+        });
+        return;
+      }
+
 
     try {
-      const mediaDataUris = await Promise.all(files.map(fileToDataURI));
+      const mediaDataUris = files.length > 0 ? await Promise.all(files.map(fileToDataURI)) : [];
       mutation.mutate({ mediaDataUris, prompt: keywords });
     } catch (error) {
       toast({
@@ -87,7 +89,7 @@ export default function MoodBoardPage() {
             <div>
               <FileUploader
                 onFilesChange={setFiles}
-                label="Upload Images or Footage Snippets"
+                label="Upload Images or Footage Snippets (Optional)"
                 accept="image/*"
                 multiple
               />
@@ -122,35 +124,38 @@ export default function MoodBoardPage() {
       )}
 
       {mutation.data && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Generated Mood Board</CardTitle>
-            {mutation.data.explanation && <CardDescription>{mutation.data.explanation}</CardDescription>}
-          </CardHeader>
-          <CardContent>
-            {mutation.data.moodBoardImages.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {mutation.data.moodBoardImages.map((imgSrc, index) => (
-                  <div key={index} className="aspect-square relative rounded-md overflow-hidden shadow-md">
-                    <Image
-                      src={imgSrc.startsWith('data:') ? imgSrc : `https://placehold.co/300x300.png?text=AI+Image+${index+1}`} // Fallback for non-dataURI
-                      alt={`Mood board image ${index + 1}`}
-                      layout="fill"
-                      objectFit="cover"
-                      data-ai-hint="moodboard visual"
-                    />
-                  </div>
-                ))}
+        <GeneratedMoodboardDisplayCard
+          images={mutation.data.moodBoardImages}
+          keywords={keywords}
+          inputMediaNames={files.map(f => f.name)}
+          explanation={mutation.data.explanation}
+          onImageClick={(imageUrl) => setViewingImage(imageUrl)}
+        />
+      )}
+
+      {viewingImage && (
+        <Dialog open={!!viewingImage} onOpenChange={(open) => !open && setViewingImage(null)}>
+          <DialogPortal>
+            <DialogOverlay />
+            <DialogContent className="max-w-3xl max-h-[80vh] p-0">
+              <div className="relative w-full h-full">
+                <Image
+                  src={viewingImage.startsWith('data:') ? viewingImage : 'https://placehold.co/800x600.png'}
+                  alt="Enlarged mood board image"
+                  layout="responsive"
+                  width={800}
+                  height={600}
+                  objectFit="contain"
+                  className="rounded-md"
+                  data-ai-hint="enlarged moodboard"
+                />
+                 <DialogClose className="absolute top-2 right-2 bg-background/70 hover:bg-background rounded-full p-1">
+                    <X className="h-5 w-5 text-muted-foreground"/>
+                 </DialogClose>
               </div>
-            ) : (
-              <p className="text-muted-foreground">No images were generated for this mood board.</p>
-            )}
-            {/* Placeholder for save/rate actions */}
-            {/* <div className="mt-4 flex justify-end">
-              <Button variant="ghost" size="sm"><Save className="mr-1 h-4 w-4" /> Save</Button>
-            </div> */}
-          </CardContent>
-        </Card>
+            </DialogContent>
+          </DialogPortal>
+        </Dialog>
       )}
     </div>
   );

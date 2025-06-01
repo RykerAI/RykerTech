@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Save, ThumbsUp, ThumbsDown, Star, Trash2 } from 'lucide-react'; // Assuming ThumbsUp/Down for rating, or use StarRating
+import { Save, ThumbsUp, ThumbsDown, Star, Trash2 } from 'lucide-react';
 import { StarRating } from './star-rating';
 import { SaveToProjectDialog } from './save-to-project-dialog';
 import type { IdeaSparkResult, WebInsightResult, MoodBoardResult } from '@/lib/types';
@@ -19,11 +19,11 @@ interface OutputDisplayCardProps {
   description?: string;
   contentToSave: AIOutputContent;
   contentType: ContentType;
-  children: React.ReactNode; // The actual display of the content
+  children: React.ReactNode;
   initialRating?: number;
-  onRate?: (rating: number) => void; // For immediate feedback if not saved yet
-  onDelete?: () => void; // If the item is already saved and can be deleted
-  isSaved?: boolean; // If the item is already part of a project
+  onRate?: (rating: number) => void;
+  onDelete?: () => void;
+  isSaved?: boolean;
 }
 
 export function OutputDisplayCard({
@@ -46,15 +46,6 @@ export function OutputDisplayCard({
       onRate(newRating);
     }
   };
-
-  // Example: Render specific content based on type for save preview or details
-  const renderContentDetailsForSave = () => {
-    if (contentType === 'ideaSparks' && 'storyIdeas' in contentToSave) {
-      return <p className="text-xs text-muted-foreground">Ideas: {contentToSave.storyIdeas.join(', ').substring(0,50)}...</p>
-    }
-    // Add more specific previews if needed
-    return null;
-  }
 
   return (
     <Card className="shadow-md">
@@ -87,17 +78,12 @@ export function OutputDisplayCard({
       <SaveToProjectDialog
         isOpen={isSaveDialogOpen}
         onOpenChange={setIsSaveDialogOpen}
-        content={{...contentToSave, rating: rating > 0 ? rating : undefined } as AIOutputContent} // Pass rating with content
+        content={{...contentToSave, rating: rating > 0 ? rating : undefined } as AIOutputContent}
         contentType={contentType}
       />
     </Card>
   );
 }
-
-// Helper to make OutputDisplayCard usage easier on feature pages
-// This component would wrap the display logic for each AI output type.
-// For example:
-// <GeneratedIdeaDisplayCard ideas={['idea1', 'idea2']} notes="some notes" files={['file1.jpg']}/>
 
 interface GeneratedIdeaDisplayCardProps {
   ideas: string[];
@@ -139,8 +125,9 @@ interface GeneratedMoodboardDisplayCardProps {
   keywords: string;
   inputMediaNames: string[];
   explanation?: string;
+  onImageClick?: (imageUrl: string) => void;
 }
-export const GeneratedMoodboardDisplayCard: React.FC<GeneratedMoodboardDisplayCardProps> = ({ images, keywords, inputMediaNames, explanation }) => {
+export const GeneratedMoodboardDisplayCard: React.FC<GeneratedMoodboardDisplayCardProps> = ({ images, keywords, inputMediaNames, explanation, onImageClick }) => {
   const contentToSave: Omit<MoodBoardResult, 'id' | 'timestamp' | 'rating'> = { 
     generatedImages: images, 
     keywords, 
@@ -152,15 +139,20 @@ export const GeneratedMoodboardDisplayCard: React.FC<GeneratedMoodboardDisplayCa
       {images.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
           {images.map((imgSrc, index) => (
-            <div key={index} className="aspect-square relative rounded-md overflow-hidden shadow-sm">
+            <button
+              key={index}
+              className="aspect-square relative rounded-md overflow-hidden shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              onClick={() => onImageClick && onImageClick(imgSrc)}
+              aria-label={`View larger image ${index + 1}`}
+            >
               <Image
-                src={imgSrc.startsWith('data:') ? imgSrc : \`https://placehold.co/150x150.png?text=AI+Image+\${index+1}\`}
-                alt={`Mood board image \${index + 1}`}
+                src={imgSrc.startsWith('data:') ? imgSrc : 'https://placehold.co/300x300.png'}
+                alt={`Mood board image ${index + 1}`}
                 layout="fill"
                 objectFit="cover"
                 data-ai-hint="moodboard visual"
               />
-            </div>
+            </button>
           ))}
         </div>
       ) : (
@@ -169,24 +161,3 @@ export const GeneratedMoodboardDisplayCard: React.FC<GeneratedMoodboardDisplayCa
     </OutputDisplayCard>
   );
 };
-
-// Update feature pages to use these display cards.
-// This OutputDisplayCard will now be used in the feature pages' success state.
-// Example for idea-spark/page.tsx:
-// Replace the mutation.data && <Card>...</Card> section with:
-/*
-  {mutation.data && (
-    <GeneratedIdeaDisplayCard 
-      ideas={mutation.data.storyIdeas}
-      inputNotes={notes}
-      inputMediaNames={files.map(f => f.name)}
-    />
-  )}
-*/
-// Similar changes for web-insight and mood-board pages.
-// The feature pages themselves are already created, this is a note on how to integrate.
-// For now, the specific display logic will remain within each feature page for simplicity,
-// but this component provides the save/rate wrapper.
-// The current feature pages will be adapted to use the SaveToProjectDialog for the "Save" button.
-// I will modify the feature pages to include the SaveToProjectDialog logic
-// by adding a "Save" button that triggers the dialog.
