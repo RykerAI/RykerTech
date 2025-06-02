@@ -6,7 +6,7 @@ import { SidebarNav } from '@/components/layout/sidebar-nav';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { Rss } from 'lucide-react'; // Placeholder for App Logo/Icon
+import { Sparkles } from 'lucide-react'; // Changed from Rss
 
 
 export const metadata: Metadata = {
@@ -33,7 +33,7 @@ export default function RootLayout({
               <SidebarHeader className="p-4">
                 <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
                   <Button variant="ghost" size="icon" className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90">
-                    <Rss className="h-5 w-5" />
+                    <Sparkles className="h-5 w-5" />
                   </Button>
                   <h1 className="text-lg font-semibold text-primary group-data-[collapsible=icon]:hidden">RYK AI MediaSpark</h1>
                 </div>
